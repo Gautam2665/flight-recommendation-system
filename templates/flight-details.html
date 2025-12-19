@@ -127,12 +127,7 @@
         {% for flight in flights %}
           <div class="flight-card">
             <div class="flight-info">
-            <img 
-              src="{{ flight.airline_logo or url_for('static', filename='airlines/default.png') }}"
-              onerror="this.src='{{ url_for('static', filename='airlines/default.png') }}'"
-              alt="{{ flight.airline }}"
-              class="airline-logo"
-            />              
+              <img src="{{ flight.airline_logo }}" alt="{{ flight.airline }}" class="airline-logo" />
               <div class="airline">{{ flight.airline }}</div>
             </div>
 
