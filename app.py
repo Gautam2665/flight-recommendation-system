@@ -155,6 +155,9 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
     return filtered.head(top_n).to_dict(orient="records")
 
 # ---------------- ROUTES ---------------
+@app.route("/")
+def index():
+    return render_template("index.html")
 
 @app.route("/home")
 def home():
