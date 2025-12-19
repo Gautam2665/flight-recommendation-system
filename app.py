@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import joblib
 import os
-import random
 import requests
 from datetime import datetime, date, timedelta
 
@@ -18,6 +17,18 @@ holiday_model = joblib.load(os.path.join(BASE_DIR, "models", "holiday_model.pkl"
 df = pd.read_csv(os.path.join(BASE_DIR, "data", "Clean_flight_data.csv"))
 df["days_left"] = df["days_left"].astype(int)
 df["class"] = df["class"].str.capitalize()
+
+# ---------------- AIRPORT LOOKUP ----------------
+airport_lookup = {
+    "Mumbai": {"code": "BOM"},
+    "Delhi": {"code": "IGI"},
+    "Chennai": {"code": "MAA"},
+    "Bangalore": {"code": "BLR"},
+    "Hyderabad": {"code": "HYD"},
+    "Kolkata": {"code": "CCU"},
+}
+
+reverse_airport_lookup = {v["code"]: k for k, v in airport_lookup.items()}
 
 # ---------------- GOOGLE HOLIDAY API (SAFE) ----------------
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -42,17 +53,14 @@ def get_holidays_api():
         r = requests.get(url, timeout=10)
         if r.status_code != 200:
             return {}
-
         events = r.json().get("items", [])
         return {
             e["start"]["date"]: e["summary"]
-            for e in events
-            if "date" in e.get("start", {})
+            for e in events if "date" in e.get("start", {})
         }
     except Exception:
         return {}
 
-# ✅ GLOBAL HOLIDAYS (IMPORTANT)
 holidays = get_holidays_api()
 
 # ---------------- JINJA FILTER ----------------
@@ -63,35 +71,15 @@ def format_date(value):
     except Exception:
         return value
 
-# ---------------- HELPERS ----------------
-def enrich_features(df, user_date, holidays_map):
+# ---------------- FEATURE ENGINEERING ----------------
+def enrich_features(df, travel_date, holidays_map):
     df = df.copy()
-    travel_date = datetime.strptime(user_date, "%Y-%m-%d").date()
-    df["day_of_week"] = travel_date.weekday()
-    df["is_holiday"] = 1 if travel_date.strftime("%Y-%m-%d") in holidays_map else 0
+    travel_date_obj = datetime.strptime(travel_date, "%Y-%m-%d").date()
+    df["day_of_week"] = travel_date_obj.weekday()
+    df["is_holiday"] = 1 if travel_date in holidays_map else 0
     return df
 
-AIRLINE_LOGOS = {
-    "Air India": "/static/logos/air-india.png",
-    "Indigo": "/static/logos/indigo.png",
-    "SpiceJet": "/static/logos/spicejet.png",
-    "Vistara": "/static/logos/vistara.png",
-    "GO FIRST": "/static/logos/goair.png",
-    "AirAsia": "/static/logos/airasia.png",
-    "Trujet": "/static/logos/truejet.png",
-    "StarAir": "/static/logos/starair.png",
-}
-
-airport_lookup = {
-    "Mumbai": {"code": "BOM"},
-    "Delhi": {"code": "IGI"},
-    "Chennai": {"code": "MAA"},
-    "Bangalore": {"code": "BLR"},
-    "Hyderabad": {"code": "HYD"},
-    "Kolkata": {"code": "CCU"},
-}
-
-# ---------------- CORE LOGIC ----------------
+# ---------------- CORE ML LOGIC ----------------
 def recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by="cheap"):
     today = date.today()
     travel_date_obj = datetime.strptime(travel_date, "%Y-%m-%d").date()
@@ -122,7 +110,6 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
         filtered["predicted_price"] += (holiday_pred - filtered["predicted_price"]) * 0.75
 
     filtered["predicted_price"] = filtered["predicted_price"].round(2)
-    filtered["airline_logo"] = filtered["airline"].map(AIRLINE_LOGOS)
 
     if sort_by == "best":
         filtered = filtered.sort_values(by=["stops", "departure_time", "predicted_price"])
@@ -144,6 +131,10 @@ def home():
 def about():
     return render_template("about.html")
 
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
 @app.route("/destinations")
 def destinations():
     return render_template("destinations.html", available_cities=list(airport_lookup.keys()))
@@ -152,45 +143,83 @@ def destinations():
 def searchflight():
     return render_template("flight-details.html")
 
-@app.route("/contact")
-def contact():
-    return render_template("contact.html")
-
-
+# ---------------- AUTOCOMPLETE ----------------
 @app.route("/suggest-airport")
 def suggest_airport():
-    query = request.args.get("q", "").lower().strip()
+    query = request.args.get("q", "").lower()
     if not query:
         return jsonify([])
 
-    suggestions = []
+    results = []
     for city, info in airport_lookup.items():
         if city.lower().startswith(query) or info["code"].lower().startswith(query):
-            suggestions.append({
+            results.append({
                 "label": f"{city} ({info['code']})",
                 "value": info["code"]
             })
-    return jsonify(suggestions)
+    return jsonify(results)
 
-@app.route("/flight-prices")
-def flight_prices():
+# ---------------- FILTER API ----------------
+@app.route("/get-filters")
+def get_filters():
     source = request.args.get("source")
     destination = request.args.get("destination")
     flight_class = request.args.get("class")
     travel_date = request.args.get("date")
 
-    flights = recommend_flights(source, destination, flight_class, travel_date, holidays)
-    return jsonify(flights)
+    if not source or not destination or not flight_class or not travel_date:
+        return jsonify({
+            "airlines": [],
+            "min_price": 0,
+            "max_price": 0,
+            "stops": [],
+            "departure_times": [],
+            "arrival_times": []
+        })
 
+    source_city = reverse_airport_lookup.get(source, source)
+    destination_city = reverse_airport_lookup.get(destination, destination)
+
+    flights = recommend_flights(
+        source_city, destination_city, flight_class, travel_date, holidays
+    )
+
+    if not flights:
+        return jsonify({
+            "airlines": [],
+            "min_price": 0,
+            "max_price": 0,
+            "stops": [],
+            "departure_times": [],
+            "arrival_times": []
+        })
+
+    prices = [f["predicted_price"] for f in flights]
+
+    return jsonify({
+        "airlines": sorted(set(f["airline"] for f in flights)),
+        "min_price": int(min(prices)),
+        "max_price": int(max(prices)),
+        "stops": sorted(set(f["stops"] for f in flights)),
+        "departure_times": [],
+        "arrival_times": []
+    })
+
+# ---------------- FLIGHT RESULTS ----------------
 @app.route("/flight-details")
 def flight_details():
-    source = request.args.get("source")
-    destination = request.args.get("destination")
+    source_code = request.args.get("source")
+    destination_code = request.args.get("destination")
     flight_class = request.args.get("class")
     travel_date = request.args.get("date")
     sort_by = request.args.get("sort_by", "cheap")
 
-    flights = recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by)
+    source = reverse_airport_lookup.get(source_code, source_code)
+    destination = reverse_airport_lookup.get(destination_code, destination_code)
+
+    flights = recommend_flights(
+        source, destination, flight_class, travel_date, holidays, sort_by
+    )
 
     return render_template(
         "flight-details.html",
