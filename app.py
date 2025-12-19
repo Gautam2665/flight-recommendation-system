@@ -30,9 +30,23 @@ airport_lookup = {
 
 reverse_airport_lookup = {v["code"]: k for k, v in airport_lookup.items()}
 
+# ---------------- SAFE HELPERS ----------------
+def clean_param(value):
+    """Return None if value is empty/null/undefined"""
+    if not value or value.lower() in ["null", "undefined"]:
+        return None
+    return value
+
+def extract_city(value):
+    """Extract city from 'Chennai (MAA)' or return as-is"""
+    if not value:
+        return None
+    if "(" in value:
+        return value.split("(")[0].strip()
+    return value
+
 # ---------------- GOOGLE HOLIDAY API (SAFE) ----------------
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-HOLIDAY_CALENDAR_ID = "en.indian#holiday@group.v.calendar.google.com"
 
 def get_holidays_api():
     if not GOOGLE_API_KEY:
@@ -42,11 +56,9 @@ def get_holidays_api():
     end_date = (datetime.utcnow() + timedelta(days=365)).isoformat() + "Z"
 
     url = (
-        f"https://www.googleapis.com/calendar/v3/calendars/"
-        f"{HOLIDAY_CALENDAR_ID}/events"
-        f"?timeMin={now}&timeMax={end_date}"
-        f"&singleEvents=true&orderBy=startTime"
-        f"&key={GOOGLE_API_KEY}"
+        "https://www.googleapis.com/calendar/v3/calendars/"
+        "en.indian#holiday@group.v.calendar.google.com/events"
+        f"?timeMin={now}&timeMax={end_date}&singleEvents=true&orderBy=startTime&key={GOOGLE_API_KEY}"
     )
 
     try:
@@ -54,10 +66,7 @@ def get_holidays_api():
         if r.status_code != 200:
             return {}
         events = r.json().get("items", [])
-        return {
-            e["start"]["date"]: e["summary"]
-            for e in events if "date" in e.get("start", {})
-        }
+        return {e["start"]["date"]: e["summary"] for e in events if "date" in e["start"]}
     except Exception:
         return {}
 
@@ -81,6 +90,9 @@ def enrich_features(df, travel_date, holidays_map):
 
 # ---------------- CORE ML LOGIC ----------------
 def recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by="cheap"):
+    if not all([source, destination, flight_class, travel_date]):
+        return []
+
     today = date.today()
     travel_date_obj = datetime.strptime(travel_date, "%Y-%m-%d").date()
     days_left = (travel_date_obj - today).days
@@ -120,11 +132,8 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
 
 # ---------------- ROUTES ----------------
 @app.route("/")
-def index():
-    return render_template("index.html")
-
 @app.route("/home")
-def home():
+def index():
     return render_template("index.html")
 
 @app.route("/about")
@@ -137,7 +146,7 @@ def contact():
 
 @app.route("/destinations")
 def destinations():
-    return render_template("destinations.html", available_cities=list(airport_lookup.keys()))
+    return render_template("destinations.html")
 
 @app.route("/searchflight")
 def searchflight():
@@ -146,28 +155,25 @@ def searchflight():
 # ---------------- AUTOCOMPLETE ----------------
 @app.route("/suggest-airport")
 def suggest_airport():
-    query = request.args.get("q", "").lower()
-    if not query:
-        return jsonify([])
-
+    q = request.args.get("q", "").lower()
     results = []
     for city, info in airport_lookup.items():
-        if city.lower().startswith(query) or info["code"].lower().startswith(query):
+        if city.lower().startswith(q):
             results.append({
                 "label": f"{city} ({info['code']})",
-                "value": info["code"]
+                "value": f"{city} ({info['code']})"
             })
     return jsonify(results)
 
-# ---------------- FILTER API ----------------
+# ---------------- FILTER API (CRASH-PROOF) ----------------
 @app.route("/get-filters")
 def get_filters():
-    source = request.args.get("source")
-    destination = request.args.get("destination")
-    flight_class = request.args.get("class")
-    travel_date = request.args.get("date")
+    source = extract_city(clean_param(request.args.get("source")))
+    destination = extract_city(clean_param(request.args.get("destination")))
+    flight_class = clean_param(request.args.get("class"))
+    travel_date = clean_param(request.args.get("date"))
 
-    if not source or not destination or not flight_class or not travel_date:
+    if not all([source, destination, flight_class, travel_date]):
         return jsonify({
             "airlines": [],
             "min_price": 0,
@@ -177,11 +183,8 @@ def get_filters():
             "arrival_times": []
         })
 
-    source_city = reverse_airport_lookup.get(source, source)
-    destination_city = reverse_airport_lookup.get(destination, destination)
-
     flights = recommend_flights(
-        source_city, destination_city, flight_class, travel_date, holidays
+        source, destination, flight_class, travel_date, holidays
     )
 
     if not flights:
@@ -208,14 +211,11 @@ def get_filters():
 # ---------------- FLIGHT RESULTS ----------------
 @app.route("/flight-details")
 def flight_details():
-    source_code = request.args.get("source")
-    destination_code = request.args.get("destination")
+    source = extract_city(request.args.get("source"))
+    destination = extract_city(request.args.get("destination"))
     flight_class = request.args.get("class")
     travel_date = request.args.get("date")
     sort_by = request.args.get("sort_by", "cheap")
-
-    source = reverse_airport_lookup.get(source_code, source_code)
-    destination = reverse_airport_lookup.get(destination_code, destination_code)
 
     flights = recommend_flights(
         source, destination, flight_class, travel_date, holidays, sort_by
