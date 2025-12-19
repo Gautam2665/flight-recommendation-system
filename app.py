@@ -8,7 +8,6 @@ from datetime import datetime, date, timedelta
 
 # ---------------- APP INIT ----------------
 app = Flask(__name__)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------- LOAD MODELS ----------------
@@ -20,16 +19,7 @@ df = pd.read_csv(os.path.join(BASE_DIR, "data", "Clean_flight_data.csv"))
 df["days_left"] = df["days_left"].astype(int)
 df["class"] = df["class"].str.capitalize()
 
-@app.template_filter("format_date")
-def format_date(value):
-    try:
-        date_obj = datetime.strptime(value, "%Y-%m-%d")
-        return date_obj.strftime("%d %B %Y")
-    except Exception:
-        return value
-
-
-# ---------------- GOOGLE HOLIDAY API ----------------
+# ---------------- GOOGLE HOLIDAY API (SAFE) ----------------
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 HOLIDAY_CALENDAR_ID = "en.indian#holiday@group.v.calendar.google.com"
 
@@ -49,30 +39,36 @@ def get_holidays_api():
     )
 
     try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
-            print("Holiday API disabled (non-200 response)")
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
             return {}
 
-        events = response.json().get("items", [])
+        events = r.json().get("items", [])
         return {
-            event["start"]["date"]: event["summary"]
-            for event in events
-            if "date" in event["start"]
+            e["start"]["date"]: e["summary"]
+            for e in events
+            if "date" in e.get("start", {})
         }
     except Exception:
         return {}
 
+# ✅ GLOBAL HOLIDAYS (IMPORTANT)
+holidays = get_holidays_api()
+
+# ---------------- JINJA FILTER ----------------
+@app.template_filter("format_date")
+def format_date(value):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%d %B %Y")
+    except Exception:
+        return value
+
 # ---------------- HELPERS ----------------
-def enrich_features(df, user_date=None, holidays_map=None):
+def enrich_features(df, user_date, holidays_map):
     df = df.copy()
-    if user_date:
-        travel_date_obj = datetime.strptime(user_date, "%Y-%m-%d").date()
-        df["day_of_week"] = travel_date_obj.weekday()
-        df["is_holiday"] = 1 if travel_date_obj.strftime("%Y-%m-%d") in holidays_map else 0
-    else:
-        df["day_of_week"] = 0
-        df["is_holiday"] = 0
+    travel_date = datetime.strptime(user_date, "%Y-%m-%d").date()
+    df["day_of_week"] = travel_date.weekday()
+    df["is_holiday"] = 1 if travel_date.strftime("%Y-%m-%d") in holidays_map else 0
     return df
 
 AIRLINE_LOGOS = {
@@ -83,47 +79,20 @@ AIRLINE_LOGOS = {
     "GO FIRST": "/static/logos/goair.png",
     "AirAsia": "/static/logos/airasia.png",
     "Trujet": "/static/logos/truejet.png",
-    "StarAir": "/static/logos/starair.png"
+    "StarAir": "/static/logos/starair.png",
 }
 
 airport_lookup = {
-    "Mumbai": {"code": "BOM", "name": "Chhatrapati Shivaji Maharaj International Airport"},
-    "Delhi": {"code": "IGI", "name": "Indira Gandhi International Airport"},
-    "Chennai": {"code": "MAA", "name": "Chennai International Airport"},
-    "Bangalore": {"code": "BLR", "name": "Kempegowda International Airport"},
-    "Hyderabad": {"code": "HYD", "name": "Rajiv Gandhi International Airport"},
-    "Kolkata": {"code": "CCU", "name": "Netaji Subhash Chandra Bose International Airport"},
+    "Mumbai": {"code": "BOM"},
+    "Delhi": {"code": "IGI"},
+    "Chennai": {"code": "MAA"},
+    "Bangalore": {"code": "BLR"},
+    "Hyderabad": {"code": "HYD"},
+    "Kolkata": {"code": "CCU"},
 }
-
-TIME_SLOT_LABELS = {
-    "early_morning": "Early Morning (3AM - 6AM)",
-    "morning": "Morning (6AM - 12PM)",
-    "afternoon": "Afternoon (12PM - 6PM)",
-    "evening": "Evening (6PM - 8PM)",
-    "late_night": "Late Night (12AM - 3AM)",
-    "night": "Night (8PM - 12AM)"
-}
-
-def get_time_slot(time_str):
-    if not time_str:
-        return "unknown"
-    if ":" in time_str:
-        try:
-            hour = int(time_str.split(":")[0])
-            if 0 <= hour < 6:
-                return "early_morning"
-            elif 6 <= hour < 12:
-                return "morning"
-            elif 12 <= hour < 18:
-                return "afternoon"
-            elif 18 <= hour <= 23:
-                return "evening"
-        except:
-            pass
-    return "unknown"
 
 # ---------------- CORE LOGIC ----------------
-def recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by="cheap", top_n=200):
+def recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by="cheap"):
     today = date.today()
     travel_date_obj = datetime.strptime(travel_date, "%Y-%m-%d").date()
     days_left = (travel_date_obj - today).days
@@ -149,8 +118,8 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
     filtered["predicted_price"] = base_model.predict(filtered[features])
 
     if filtered["is_holiday"].iloc[0] == 1:
-        holiday_adjustment = holiday_model.predict(filtered[features])
-        filtered["predicted_price"] += (holiday_adjustment - filtered["predicted_price"]) * 0.75
+        holiday_pred = holiday_model.predict(filtered[features])
+        filtered["predicted_price"] += (holiday_pred - filtered["predicted_price"]) * 0.75
 
     filtered["predicted_price"] = filtered["predicted_price"].round(2)
     filtered["airline_logo"] = filtered["airline"].map(AIRLINE_LOGOS)
@@ -160,9 +129,9 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
     else:
         filtered = filtered.sort_values(by=["predicted_price", "days_left"])
 
-    return filtered.head(top_n).to_dict(orient="records")
+    return filtered.to_dict(orient="records")
 
-# ---------------- ROUTES ---------------
+# ---------------- ROUTES ----------------
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -175,20 +144,24 @@ def home():
 def about():
     return render_template("about.html")
 
-@app.route("/contact")
-def contact():
-    return render_template("contact.html")
-
-@app.route("/searchflight")
-def searchflight():
-    return render_template("flight-details.html")
-
 @app.route("/destinations")
 def destinations():
-    return render_template(
-        "destinations.html",
-        available_cities=list(airport_lookup.keys())
-    )
+    return render_template("destinations.html", available_cities=list(airport_lookup.keys()))
+
+@app.route("/suggest-airport")
+def suggest_airport():
+    query = request.args.get("q", "").lower().strip()
+    if not query:
+        return jsonify([])
+
+    suggestions = []
+    for city, info in airport_lookup.items():
+        if city.lower().startswith(query) or info["code"].lower().startswith(query):
+            suggestions.append({
+                "label": f"{city} ({info['code']})",
+                "value": info["code"]
+            })
+    return jsonify(suggestions)
 
 @app.route("/flight-prices")
 def flight_prices():
@@ -209,7 +182,16 @@ def flight_details():
     sort_by = request.args.get("sort_by", "cheap")
 
     flights = recommend_flights(source, destination, flight_class, travel_date, holidays, sort_by)
-    return render_template("flight-details.html", flights=flights)
+
+    return render_template(
+        "flight-details.html",
+        flights=flights,
+        source=source,
+        destination=destination,
+        travel_date=travel_date,
+        flight_class=flight_class,
+        sort_by=sort_by
+    )
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
