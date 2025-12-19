@@ -152,6 +152,10 @@ def destinations():
 def searchflight():
     return render_template("flight-details.html")
 
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
 
 @app.route("/suggest-airport")
 def suggest_airport():
