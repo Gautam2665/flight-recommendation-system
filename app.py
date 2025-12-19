@@ -20,6 +20,15 @@ df = pd.read_csv(os.path.join(BASE_DIR, "data", "Clean_flight_data.csv"))
 df["days_left"] = df["days_left"].astype(int)
 df["class"] = df["class"].str.capitalize()
 
+@app.template_filter("format_date")
+def format_date(value):
+    try:
+        date_obj = datetime.strptime(value, "%Y-%m-%d")
+        return date_obj.strftime("%d %B %Y")
+    except Exception:
+        return value
+
+
 # ---------------- GOOGLE HOLIDAY API ----------------
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 HOLIDAY_CALENDAR_ID = "en.indian#holiday@group.v.calendar.google.com"
