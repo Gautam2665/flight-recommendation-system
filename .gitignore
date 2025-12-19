@@ -1,3 +1,4 @@
 myenv/
 token.json
 credentials.json
+.ipynb_checkpoints/
