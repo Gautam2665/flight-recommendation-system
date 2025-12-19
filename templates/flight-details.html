@@ -12,131 +12,540 @@
 </head>
 
 <body class="bg-gray-50">
-{% include 'navbar.html' %}
+  {% include 'navbar.html' %}
+  <div class="container">
+    <header>
+      <p class="subtitle">BOOK YOUR FLIGHT</p>
+    </header>
 
-<div class="container">
-
-  <!-- FLIGHT CARDS -->
-  <div class="flights-container">
-    {% for flight in flights %}
-    <div class="flight-card">
-
-      <div class="flight-info">
-        <img
-          src="{{ flight.airline_logo or url_for('static', filename='airlines/default.png') }}"
-          onerror="this.src='{{ url_for('static', filename='airlines/default.png') }}'"
-          class="airline-logo"
-          alt="{{ flight.airline }}"
-        />
-        <div class="airline">{{ flight.airline }}</div>
-      </div>
-
-      <div class="price-block">
-        <div class="price">
-          ₹{{ "%.2f"|format(flight.predicted_price) }}
-        </div>
-        <button class="details-btn">Check Details</button>
-      </div>
-
+    <div class="booking-tabs">
+      <div class="tab {% if sort_by == 'cheap' %}active{% endif %}" onclick="filterFlights('cheap')">Cheapest</div>
+      <div class="tab {% if sort_by == 'best' %}active{% endif %}" onclick="filterFlights('best')">Best</div>
     </div>
-    {% endfor %}
+
+    <div class="search-box">
+      <form action="{{ url_for('flight_details') }}" method="get" class="search-fields">
+        <div class="field">
+          <div class="swap-container">
+            <div class="swap-field">
+              <label>From</label>
+              <input type="text" id="sourceInput" name="source" value="{{ source }}" required>
+            </div>
+
+            <button type="button" class="swap-button" onclick="swapInputs()" aria-label="Swap origin and destination">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M.44 8.56a1.5 1.5 0 0 1 0-2.12l4.5-4.5a1.5 1.5 0 0 1 2.12 0l4.5 4.5a1.5 1.5 0 0 1-2.12 2.12L7.5 6.622V19.5a1.5 1.5 0 0 1-3 0V6.621l-1.94 1.94a1.5 1.5 0 0 1-2.12 0zm12 6.88a1.5 1.5 0 0 0 0 2.12l4.5 4.5a1.5 1.5 0 0 0 2.12 0l4.5-4.5a1.5 1.5 0 0 0-2.12-2.12l-1.94 1.939V4.5a1.5 1.5 0 0 0-3 0v12.879l-1.94-1.94a1.5 1.5 0 0 0-2.12 0z"></path>
+              </svg>
+            </button>
+
+            <div class="swap-field">
+              <label>To</label>
+              <input type="text" id="destinationInput" name="destination" value="{{ destination }}" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Departure</div>
+          <input type="text" name="date" class="field-value-input" id="departureDate" value="{{ travel_date }}" placeholder="Select your date" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Class</div>
+          <select name="class" class="field-value-input" required>
+            <option value="Economy" {% if flight_class == 'Economy' %}selected{% endif %}>Economy</option>
+            <option value="Business" {% if flight_class == 'Business' %}selected{% endif %}>Business</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Travellers</div>
+          <input type="number" name="travellers" class="field-value-input" min="1" value="{{ travellers | default(1) }}" required>
+        </div>
+
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <button type="submit" class="search-btn">Modify Search</button>
+      </form>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-6">
+      <aside class="w-full md:w-64 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6 animate-fade-in max-h-screen overflow-y-auto custom-scroll" style="animation-delay: 0.4s;">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Filters</h3>
+          <button onclick="clearFilters()" class="text-sm text-blue-600 hover:text-blue-800">Clear All</button>
+        </div>
+        
+        <div class="filter-section">
+          <div class="filter-section mb-6 border-b pb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Stops From <span id="stop-city">City</span></h4>
+            <div id="stops-filters" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+          </div>
+        </div>
+        
+        <!-- Airlines Filter -->
+        <div class="filter-section">
+          <div class="filter-section mb-6 border-b pb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Airlines</h4>
+            <div id="airline-filters" class="space-y-2"></div>
+          </div>
+        </div>
+        
+        <div class="filter-section">
+          <div class="filter-section mb-6 border-b pb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Price Range</h4>
+            <div class="flex justify-between text-xs text-gray-500 mb-1">
+              <span id="min-price">₹0</span>
+              <span id="max-price">₹0</span>
+            </div>
+            <input type="range" id="price-range" step="100" 
+                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          </div>
+        </div>
+        
+        <div class="filter-section">
+          <div class="filter-section mb-6 border-b pb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Departure Time</h4>
+            <div id="departure-time-filters" class="grid grid-cols-2 gap-2"></div>
+          </div>
+        </div>
+        
+        <div class="filter-section">
+          <div class="filter-section mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Arrival Time</h4>
+            <div id="arrival-time-filters" class="grid grid-cols-2 gap-2"></div>
+          </div>
+        </div>
+        
+        <button onclick="applyFilters()" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300">
+          Apply Filters
+        </button>
+      </aside>       
+
+    <div class="flights-container">
+      {% if flights %}
+        {% for flight in flights %}
+          <div class="flight-card">
+            <div class="flight-info">
+            <img 
+              src="{{ flight.airline_logo or url_for('static', filename='airlines/default.png') }}"
+              onerror="this.src='{{ url_for('static', filename='airlines/default.png') }}'"
+              alt="{{ flight.airline }}"
+              class="airline-logo"
+            />              
+              <div class="airline">{{ flight.airline }}</div>
+            </div>
+
+            <div class="flight-timeline">
+              <div class="time-block">
+                <div class="time">{{ flight.actual_dep_time }}</div>
+                <div class="airport-code">{{ flight.source_code }}</div>
+                <div class="airport">{{ flight.source_airport }}</div>
+              </div>
+
+              <div class="flight-center">
+                <span class="duration">{{ flight.duration }}</span>
+                <div class="line-with-plane">
+                  <div class="line"></div>
+                  <svg class="plane-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12">
+                    <path fill="#898294" d="M3.922 12h.499a.52.52 0 0 0 .444-.247L7.949 6.8l3.233-.019A.8.8 0 0 0 12 6a.8.8 0 0 0-.818-.781L7.949 5.2 4.866.246A.525.525 0 0 0 4.421 0h-.499a.523.523 0 0 0-.489.71L5.149 5.2H2.296l-.664-1.33a.523.523 0 0 0-.436-.288L0 3.509 1.097 6 0 8.491l1.196-.073a.523.523 0 0 0 .436-.288l.664-1.33h2.853l-1.716 4.49a.523.523 0 0 0 .489.71"></path>
+                  </svg>
+                </div>
+                <div class="stops" data-stops="{{ flight.stops }}">
+                  {% if flight.stops == 0 %} <span class="direct">Direct</span>
+                  {% elif flight.stops == 1 %} 1 Stop
+                  {% else %} {{ flight.stops }} Stops
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="time-block">
+                <div class="time">{{ flight.actual_arr_time }}</div>
+                <div class="airport-code">{{ flight.destination_code }}</div>
+                <div class="airport-name">{{ flight.destination_airport }}</div>
+              </div>
+            </div>
+
+            <div class="price-block">
+              <div class="price">₹{{ "%.2f"|format(flight.predicted_price) }}</div>
+              <div class="price-type">{{ 'Holiday Pricing' if flight.holiday == "Holiday Pricing" else 'Standard Pricing' }}</div>
+              {% if travellers %}
+                <div class="total-price">
+                  Total for {{ travellers }} traveller{{ 's' if travellers > 1 else '' }}:
+                  ₹{{ "%.2f"|format(flight.predicted_price * travellers) }}
+                </div>
+              {% endif %}
+              <button class="details-btn" onclick="openDetails(this)">Check Details</button>
+            </div>
+
+            <div class="details-overlay" onclick="closeDetails(this)">
+              <div class="details-modal" onclick="event.stopPropagation();">
+                <nav class="nav nav-tabs" role="tablist">
+                  <a href="#" role="tab" aria-selected="true" class="nav-item nav-link active">FLIGHT DETAILS</a>
+                </nav>
+            
+                <div class="tab-content">
+                  <!-- FLIGHT DETAILS TAB -->
+                  <div class="tab-pane active show">
+                    <div class="flightDetails">
+                      <p class="flightDetailsHead">{{ flight.source_city }} to {{ flight.destination_city }} — {{ travel_date | format_date }}</p>
+                      <div class="flightDetailsInfo">
+            
+                        <div class="flightDetailsRow">
+                          <p class="makeFlex hrtlCenter appendBottom20 gap-x-5">
+                            <span class="icon32 bgProperties airlineLogo" 
+                                  style="background-image: url('{{ flight.airline_logo }}');">
+                            </span>
+                            <span class="airlineHeadng">
+                              <b>{{ flight.airline }}</b> {{ flight.flight }}
+                            </span>
+                            <span class="aircraftType">{{ flight.aircraft }}</span>
+                          </p>
+                        
+                          <div class="makeFlex flightDtlInfo justifyBetween alignCenter">
+                            <!-- Departure Info -->
+                            <div class="airlineDTInfoCol centerText">
+                              <p class="fontSize18 blackText blackFont">{{ flight.actual_dep_time }}</p>
+                              <p class="fontSize12 blackText boldFont">{{ flight.travel_date }}</p>
+                              <p class="terminalInfo">Terminal {{ flight.depart_terminal }}</p>
+                              <p class="fontSize12">{{ flight.source_airport }}</p>
+                            </div>
+                        
+                            <!-- Duration Info -->
+                            <div class="durationSection centerText">
+                              <p class="fontSize12 durationTime">{{ flight.duration }}</p>
+                              <div class="fliStopsSepLineCenter" style="border-top: 3px solid #156128; width: 60px; margin: 4px auto;"></div>
+                              <p class="fontSize12 durationTime">                
+                                <div class="stops">
+                                {% if flight.stops == 0 %} <span class="direct">Direct</span>
+                                {% elif flight.stops == 1 %} 1 Stop
+                                {% else %} {{ flight.stops }} Stops
+                                {% endif %}
+                                </div>
+                              </p>
+                            </div>
+                        
+                            <!-- Arrival Info -->
+                            <div class="airlineDTInfoCol centerText">
+                              <p class="fontSize18 blackText blackFont">{{ flight.actual_arr_time }}</p>
+                              <p class="fontSize12 blackText boldFont">{{ flight.travel_date }}</p>
+                              <p class="terminalInfo">Terminal {{ flight.arrival_terminal }}</p>
+                              <p class="fontSize12">{{ flight.destination_airport }}</p>
+                            </div>
+                  
+
+                          {% if flight.baggage %}
+                              {% set checkin, cabin = flight.baggage.split('+') %}
+                          {% else %}
+                              {% set checkin, cabin = 'N/A', 'N/A' %}
+                          {% endif %}
+                            
+                          <div class="baggageInfo makeFlex columnGap20 alignCenter">
+                            <!-- Row 1: Labels -->
+                            <div class="makeFlex columnGap40 baggageLabels">
+                              <span class="baggageLabel blackFont fontSize14">BAGGAGE :</span>
+                              <span class="baggageLabel blackFont fontSize14">CHECK IN</span>
+                              <span class="baggageLabel blackFont fontSize14">CABIN</span>
+                            </div>
+                          
+                            <!-- Row 2: Values -->
+                            <div class="makeFlex columnGap40 baggageValues">
+                              <span class="baggageInfoText darkText">ADULT</span>
+                              <span class="baggageInfoText darkText">{{ checkin.strip() }}</span>
+                              <span class="baggageInfoText darkText">{{ cabin.strip() }}</span>
+                            </div>
+                          </div>                          
+                          </div>
+            
+                          <div class="makeFlex hrtlCenter flexWrap appendTop18">
+                            {% if flight.meals == "Complimentary Meals" %}
+                            <div class="makeFlex gap8 lowEmphasis hrtlCenter noShrink appendRight50 appendBottom12 noselect">
+                              <span class="icon16 bgProperties" style="background-image: url('/static/meal.webp');"></span>
+                              <div class="fontSize12">Complimentary Meals</div>
+                            </div>
+                          {% else %}
+                            <div class="makeFlex gap8 lowEmphasis hrtlCenter noShrink appendRight50 appendBottom12 noselect">
+                              <span class="icon16 bgProperties" style="background-image: url('/static/meal.webp');"></span>
+                              <div class="fontSize12">Buy Onboard Meals</div>
+                            </div>
+                          {% endif %}                          
+                          
+                            {% if flight.usb|default('no')|lower == 'yes' %}
+                              <div class="makeFlex gap8 lowEmphasis hrtlCenter noShrink appendRight50 appendBottom12 noselect">
+                                <span class="icon16 bgProperties" style="background-image: url('/static/power.webp');"></span>
+                                <div class="fontSize12">USB Available</div>
+                              </div>
+                            {% endif %}
+                          
+                            <div class="makeFlex gap8 lowEmphasis hrtlCenter noShrink appendRight50 appendBottom12 noselect">
+                              <span class="icon16 bgProperties" style="background-image: url('/static/beverages.webp');"></span>
+                              <div class="fontSize12">{{ flight.beverages }}</div>
+                            </div>
+                          </div>                          
+                        </div>
+                      </div>
+                    </div>
+                  </div>            
+                </div>
+            
+                <button class="close-btn" onclick="closeDetails(this)">Close</button>
+              </div>
+            </div>            
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="no-flights"></p>
+      {% endif %}
+    </div>
   </div>
 
-  <!-- FILTER SIDEBAR -->
-  <aside class="w-full md:w-64 bg-white p-4 rounded-xl">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      flatpickr("#departureDate", {
+        dateFormat: "Y-m-d",
+        minDate: "today",
+        theme: "material_blue",
+        mode: "single",
+        disableMobile: true
+      });
+    });
 
-    <h3 class="font-semibold mb-3">Filters</h3>
 
-    <!-- AIRLINES -->
-    <div id="airline-filters"></div>
+    function filterFlights(type) {
+      const urlParams = new URLSearchParams(window.location.search);
+      urlParams.set("sort_by", type);
 
-    <!-- STOPS -->
-    <div id="stops-filters" class="mt-4"></div>
+      const selectedAirlines = Array.from(document.querySelectorAll('.airline-filter:checked')).map(cb => cb.value);
+      if (selectedAirlines.length > 0) {
+        urlParams.set("airline", selectedAirlines.join(","));
+      }
+    
+      window.location.search = urlParams.toString();
+    }
+    
 
-    <!-- PRICE -->
-    <div class="mt-4">
-      <span id="min-price">₹0</span> –
-      <span id="max-price">₹0</span>
-      <input id="price-range" type="range" class="w-full">
-    </div>
+    function swapInputs() {
+      const source = document.getElementById('sourceInput');
+      const dest = document.getElementById('destinationInput');
+      [source.value, dest.value] = [dest.value, source.value];
+    }
 
-    <button onclick="applyFilters()" class="mt-4 bg-blue-600 text-white w-full py-2 rounded">
-      Apply Filters
-    </button>
-  </aside>
-</div>
+    function attachCustomAutocomplete(inputId) {
+      const input = document.getElementById(inputId);
+      const wrapper = input.parentElement;
+      let suggestionBox = document.createElement('div');
+      suggestionBox.className = "autocomplete-suggestions";
+      wrapper.style.position = "relative";
+      wrapper.appendChild(suggestionBox);
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
+      input.addEventListener('input', async function() {
+        const query = this.value.trim();
+        suggestionBox.innerHTML = '';
+        if (!query) return;
+        const response = await fetch(`/suggest-airport?q=${encodeURIComponent(query)}`);
+        const suggestions = await response.json();
 
-  const params = new URLSearchParams(window.location.search);
-
-  fetch(`/get-filters?${params.toString()}`)
-    .then(r => r.json())
-    .then(data => {
-
-      /* AIRLINES */
-      const airlineBox = document.getElementById("airline-filters");
-      airlineBox.innerHTML = "";
-      (data.airlines || []).forEach(a => {
-        airlineBox.innerHTML += `
-          <label>
-            <input type="checkbox" class="airline-checkbox" value="${a}">
-            ${a}
-          </label><br>
-        `;
+        suggestions.forEach(s => {
+          const div = document.createElement('div');
+          div.className = "autocomplete-suggestion";
+          div.innerHTML = `<span class="suggestion-icon">✈️</span><div class="suggestion-text"><div class="suggestion-city">${s.label}</div></div>`;
+          div.onclick = () => {
+            input.value = s.label;
+            suggestionBox.innerHTML = '';
+          };
+          suggestionBox.appendChild(div);
+        });
       });
 
-      /* STOPS */
-      const stopBox = document.getElementById("stops-filters");
-      stopBox.innerHTML = "";
-      (data.stops || []).forEach(s => {
-        const price = s.min_price ? `₹${s.min_price.toLocaleString("en-IN")}` : "—";
-        stopBox.innerHTML += `
-          <label>
-            <input type="checkbox" class="stop-checkbox" value="${s.value}">
-            ${s.label} <span>${price}</span>
-          </label><br>
-        `;
+      document.addEventListener('click', e => {
+        if (!wrapper.contains(e.target)) suggestionBox.innerHTML = '';
       });
+    }
 
-      /* PRICE RANGE */
-      const range = document.getElementById("price-range");
-      range.min = data.min_price ?? 0;
-      range.max = data.max_price ?? 0;
-      range.value = params.get("max_price") || range.max;
+    attachCustomAutocomplete("sourceInput");
+    attachCustomAutocomplete("destinationInput");
 
-      document.getElementById("min-price").textContent =
-        `₹${(data.min_price ?? 0).toLocaleString("en-IN")}`;
-      document.getElementById("max-price").textContent =
-        `₹${range.value.toLocaleString("en-IN")}`;
+    function openDetails(button) {
+      button.parentElement.parentElement.querySelector('.details-overlay').classList.add('active');
+    }
 
-      range.oninput = () => {
-        document.getElementById("max-price").textContent =
-          `₹${parseInt(range.value).toLocaleString("en-IN")}`;
-      };
-    })
-    .catch(err => console.error("Filter error:", err));
-});
+    function closeDetails(element) {
+      element.closest('.details-overlay').classList.remove('active');
+    }
 
-/* APPLY FILTERS */
-function applyFilters() {
-  const params = new URLSearchParams(window.location.search);
+    document.addEventListener("DOMContentLoaded", function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const selectedAirlines = urlParams.get("airline")?.split(",") || [];
+      const selectedStops = urlParams.get("stops")?.split(",") || [];
+      const selectedDepTimes = urlParams.get("departure_time")?.split(",") || [];
+      const selectedArrTimes = urlParams.get("arrival_time")?.split(",") || [];
+      
+      const source = urlParams.get("source");
+      const destination = urlParams.get("destination");
+      const travelClass = urlParams.get("class");
+      const travelDate = urlParams.get("date");
+      const sortBy = urlParams.get("sort_by") || "cheap";
+      const maxPrice = urlParams.get("max_price") || "";
+    
+      // ✅ Construct query string including filters
+      const queryParams = new URLSearchParams({
+        source,
+        destination,
+        class: travelClass,
+        date: travelDate,
+        sort_by: sortBy,
+      });
+    
+      if (selectedAirlines.length > 0) {
+        queryParams.set("airline", selectedAirlines.join(","));
+      }
+      if (selectedStops.length > 0) {
+        queryParams.set("stops", selectedStops.join(","));
+      }
+      if (selectedDepTimes.length > 0) queryParams.set("departure_time", selectedDepTimes.join(","));
+      if (selectedArrTimes.length > 0) queryParams.set("arrival_time", selectedArrTimes.join(","));
+      if (maxPrice) {
+        queryParams.set("max_price", maxPrice);
+      }
+    
+      // Fetch with full filter context
+      fetch(`/get-filters?${queryParams.toString()}`)
+        .then(response => {
+          if (!response.ok) throw new Error("Network response was not ok");
+          return response.json();
+        })
+        .then(data => {
 
-  const airlines = [...document.querySelectorAll(".airline-checkbox:checked")]
-    .map(e => e.value);
-  airlines.length ? params.set("airline", airlines.join(",")) : params.delete("airline");
+          const airlineContainer = document.getElementById("airline-filters");
+          airlineContainer.innerHTML = "";
+          data.airlines.forEach(airline => {
+            const isChecked = selectedAirlines.includes(airline) ? "checked" : "";
+            const label = document.createElement("label");
+            label.innerHTML = `
+              <input type="checkbox" class="airline-checkbox" name="airline" value="${airline}" ${isChecked}>
+              ${airline}
+            `;
+            airlineContainer.appendChild(label);
+          });
+    
 
-  const stops = [...document.querySelectorAll(".stop-checkbox:checked")]
-    .map(e => e.value);
-  stops.length ? params.set("stops", stops.join(",")) : params.delete("stops");
+          const stopsContainer = document.getElementById("stops-filters");
+          const stopCity = source?.split("(")[0].trim() || "City";
+          document.getElementById("stop-city").textContent = stopCity;
+          stopsContainer.innerHTML = "";
+          data.stops.forEach(stop => {
+            const isChecked = selectedStops.includes(stop.value) ? "checked" : "";
+            const label = document.createElement("label");
+            label.style.display = "flex";
+            label.style.justifyContent = "space-between";
+            label.style.alignItems = "center";
+            label.innerHTML = `
+              <span>
+                <input type="checkbox" class="stop-checkbox" name="stops" value="${stop.value}" ${isChecked}>
+                ${stop.label}
+              </span>
+              <span>₹${stop.min_price ? stop.min_price.toLocaleString("en-IN") : "—"}</span>
+            `;
+            stopsContainer.appendChild(label);
+          });
 
-  const price = document.getElementById("price-range").value;
-  price ? params.set("max_price", price) : params.delete("max_price");
+          const depTimeContainer = document.getElementById("departure-time-filters");
+          depTimeContainer.innerHTML = "";
+          data.departure_times.forEach(slot => {
+            const isChecked = selectedDepTimes.includes(slot.value) ? "checked" : "";
+            const label = document.createElement("label");
+            label.innerHTML = `
+              <input type="checkbox" class="departure-time-checkbox" name="departure_time" value="${slot.value}" ${isChecked}>
+              ${slot.label}
+            `;
+            depTimeContainer.appendChild(label);
+          });
+          console.log(data);
+        
+          const arrTimeContainer = document.getElementById("arrival-time-filters");
+          arrTimeContainer.innerHTML = "";
+          data.arrival_times.forEach(slot => {
+            const isChecked = selectedArrTimes.includes(slot.value) ? "checked" : "";
+            const label = document.createElement("label");
+            label.innerHTML = `
+              <input type="checkbox" class="arrival-time-checkbox" name="arrival_time" value="${slot.value}" ${isChecked}>
+              ${slot.label}
+            `;
+            arrTimeContainer.appendChild(label);
+          });
+          console.log(data)
 
-  window.location.search = params.toString();
-}
-</script>
+          const priceRange = document.getElementById("price-range");
+          const priceMin = document.getElementById("min-price");
+          const priceMax = document.getElementById("max-price");
+    
+          priceRange.min = data.min_price;
+          priceRange.max = data.max_price;
+          priceRange.value = maxPrice || data.max_price;
+    
+          priceMin.textContent = `₹${(data.min_price ?? 0).toLocaleString()}`;
+          priceMax.textContent = `₹${(priceRange.value ?? 0).toLocaleString()}`;
+    
+          priceRange.addEventListener("input", () => {
+            priceMax.textContent = `₹${parseInt(priceRange.value).toLocaleString()}`;
+          });
+        })
+        .catch(error => console.error("Error fetching filters:", error));
+    });    
+    
+    function applyFilters() {
+      const urlParams = new URLSearchParams(window.location.search);
+    
+      // Gather selected airlines
+      const selectedAirlines = Array.from(document.querySelectorAll(".airline-checkbox:checked"))
+        .map(cb => cb.value);
+      if (selectedAirlines.length > 0) {
+        urlParams.set("airline", selectedAirlines.join(","));
+      } else {
+        urlParams.delete("airline");
+      }
+    
+      // Gather selected stops
+      const selectedStops = Array.from(document.querySelectorAll(".stop-checkbox:checked"))
+        .map(cb => cb.value);
+      if (selectedStops.length > 0) {
+        urlParams.set("stops", selectedStops.join(","));
+      } else {
+        urlParams.delete("stops");
+      }
 
+      const selectedDepTimes = Array.from(document.querySelectorAll(".departure-time-checkbox:checked")).map(cb => cb.value);
+      if (selectedDepTimes.length > 0) urlParams.set("departure_time", selectedDepTimes.join(","));
+      else urlParams.delete("departure_time");
+
+      const selectedArrTimes = Array.from(document.querySelectorAll(".arrival-time-checkbox:checked")).map(cb => cb.value);
+      if (selectedArrTimes.length > 0) urlParams.set("arrival_time", selectedArrTimes.join(","));
+      else urlParams.delete("arrival_time");
+    
+      // Gather selected max price
+      const priceRange = document.getElementById("price-range");
+      if (priceRange && priceRange.value) {
+        urlParams.set("max_price", priceRange.value);
+      } else {
+        urlParams.delete("max_price");
+      }
+
+      window.location.search = urlParams.toString();  // 🔄 reloads with updated query string
+    }    
+    
+
+    function clearFilters() {
+      document.querySelectorAll(".airline-checkbox, .stop-checkbox").forEach(cb => cb.checked = false);
+      const priceRange = document.getElementById("price-range");
+      priceRange.value = priceRange.max;
+      document.getElementById("max-price").textContent = `₹${parseInt(priceRange.max).toLocaleString()}`;
+      document.querySelectorAll(".departure-time-checkbox").forEach(cb => cb.checked = false);
+      document.querySelectorAll(".arrival-time-checkbox").forEach(cb => cb.checked = false);
+      applyFilters();
+    }
+    
+          
+  </script>
 </body>
 </html>
