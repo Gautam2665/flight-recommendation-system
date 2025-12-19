@@ -163,6 +163,25 @@ def index():
 def home():
     return render_template("index.html")
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
+@app.route("/searchflight")
+def searchflight():
+    return render_template("flight-details.html")
+
+@app.route("/destinations")
+def destinations():
+    return render_template(
+        "destinations.html",
+        available_cities=list(airport_lookup.keys())
+    )
+
 @app.route("/flight-prices")
 def flight_prices():
     source = request.args.get("source")
