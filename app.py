@@ -30,17 +30,28 @@ airport_lookup = {
 }
 
 # ---------------- AIRLINE LOGOS ----------------
-AIRLINE_LOGOS = {
-    "Air India": "/static/logos/air-india.png",
-    "IndiGo": "/static/logos/indigo.png",
-    "Vistara": "/static/logos/vistara.png",
-    "SpiceJet": "/static/logos/spicejet.png",
-    "AirAsia": "/static/logos/airasia.png",
-    "Go First": "/static/logos/gofirst.png",
-}
-
 def get_airline_logo(airline):
-    return AIRLINE_LOGOS.get(airline, "/static/logos/default.png")
+    airline = airline.strip().lower()
+
+    airline_map = {
+        "air india": "air-india.png",
+        "indigo": "indigo.png",
+        "indi go": "indigo.png",
+        "spicejet": "spicejet.png",
+        "vistara": "vistara.png",
+        "airasia": "airasia.png",
+        "go first": "gofirst.png",
+        "goair": "gofirst.png",
+        "trujet": "truejet.png",
+    }
+
+    filename = airline_map.get(airline)
+    if filename:
+        return f"/static/logos/{filename}"
+
+    # FINAL fallback → reuse Indigo logo instead of missing image
+    return "/static/logos/indigo.png"
+
 
 # ---------------- TIME SLOTS ----------------
 TIME_SLOT_LABELS = {
