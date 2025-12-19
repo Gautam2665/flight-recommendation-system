@@ -1,0 +1,8 @@
+flask
+gunicorn
+numpy
+pandas
+scikit-learn
+joblib
+requests
+python-dateutil
