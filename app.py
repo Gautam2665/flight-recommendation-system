@@ -132,9 +132,13 @@ def recommend_flights(source, destination, flight_class, travel_date, holidays, 
 
 # ---------------- ROUTES ----------------
 @app.route("/")
-@app.route("/home")
 def index():
     return render_template("index.html")
+
+@app.route("/home")
+def home():
+    return render_template("index.html")
+
 
 @app.route("/about")
 def about():
