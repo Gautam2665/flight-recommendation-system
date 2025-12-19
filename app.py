@@ -148,6 +148,11 @@ def about():
 def destinations():
     return render_template("destinations.html", available_cities=list(airport_lookup.keys()))
 
+@app.route("/searchflight")
+def searchflight():
+    return render_template("flight-details.html")
+
+
 @app.route("/suggest-airport")
 def suggest_airport():
     query = request.args.get("q", "").lower().strip()
