@@ -35,7 +35,6 @@ HOLIDAY_CALENDAR_ID = "en.indian#holiday@group.v.calendar.google.com"
 
 def get_holidays_api():
     if not GOOGLE_API_KEY:
-        print("GOOGLE_API_KEY not set, skipping holidays")
         return {}
 
     now = datetime.utcnow().isoformat() + "Z"
@@ -51,18 +50,18 @@ def get_holidays_api():
 
     try:
         response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        if response.status_code != 200:
+            print("Holiday API disabled (non-200 response)")
+            return {}
+
         events = response.json().get("items", [])
         return {
             event["start"]["date"]: event["summary"]
             for event in events
             if "date" in event["start"]
         }
-    except Exception as e:
-        print("Holiday API error:", e)
+    except Exception:
         return {}
-
-holidays = get_holidays_api()
 
 # ---------------- HELPERS ----------------
 def enrich_features(df, user_date=None, holidays_map=None):
