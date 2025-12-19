@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@3.4.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>About SkyScout | Find the Best & Cheapest Flights</title>
+  </head>
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      AOS.init({
+        duration: 1800,
+        once: false,
+        easing: 'ease-out-cubic',
+        mirror: true
+      });
+      
+      // Add hover class to cards for better performance
+      const cards = document.querySelectorAll('.memories__card, .lounge__details');
+      cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+          this.classList.add('hover');
+        });
+        card.addEventListener('mouseleave', function() {
+          this.classList.remove('hover');
+        });
+      });
+    });
+  </script>      
+  <body>
+    {% include 'navbar.html' %}
+    
+    <header class="section__container header__container" data-aos="fade-up">
+      <h1 class="section__header" data-aos="fade-up" data-aos-delay="200">About SkyScout<br />Our Smart Flight Recommendation System</h1>
+      <img src="{{ url_for('static', filename='header.jpg') }}" alt="header" data-aos="zoom-in">
+    </header>
+
+    <section class="section__container plan__container" data-aos="fade-up">
+      <p class="subheader">OUR TECHNOLOGY</p>
+      <h2 class="section__header" data-aos="fade-up" data-aos-delay="200">
+        How We Find Your Perfect Flight
+      </h2>      
+      <p class="description">
+        SkyScout uses advanced algorithms to analyze thousands of flight options and deliver personalized recommendations tailored to your needs.
+      </p>
+      <div class="plan__grid">
+        <div class="plan__content" data-aos="fade-right" data-aos-delay="300">
+          <span class="number animate__animated animate__bounceIn"><i class="ri-algorithm-line"></i></span>
+          <h4>Dual-Algorithm Approach</h4>
+          <p>
+            We employ two distinct algorithms - one optimized for finding the absolute best flights, and another focused on finding the cheapest options.
+          </p>
+          <span class="number animate__animated animate__bounceIn"><i class="ri-database-2-line"></i></span>
+          <h4>Comprehensive Data Analysis</h4>
+          <p>
+            Our system processes millions of data points including prices, schedules, airline ratings, and user preferences.
+          </p>
+          <span class="number animate__animated animate__bounceIn"><i class="ri-artboard-line"></i></span>
+          <h4>Machine Learning</h4>
+          <p>
+            Our algorithms continuously learn and improve from user interactions and flight pattern changes.
+          </p>
+        </div>
+        <div class="plan__image" data-aos="fade-left" data-aos-delay="500">
+            <img src="{{ url_for('static', filename='algo.webp') }}" alt="Algorithm 1">
+            <img src="{{ url_for('static', filename='ago2.png') }}" alt="Algorithm 2">
+            <img src="{{ url_for('static', filename='algo3.jpeg') }}" alt="Algorithm 3">
+        </div>
+      </div>
+    </section>
+
+    <section class="memories" data-aos="fade-up">
+      <div class="section__container memories__container">
+        <div class="memories__header">
+          <h2 class="section__header">
+            Our Recommendation Algorithms
+          </h2>
+        </div>
+        <div class="memories__grid">
+          <div class="memories__card holographic-card" data-aos="flip-up" data-aos-delay="300">
+            <span><i class="ri-medal-line"></i></span>
+            <h4>Best Flight Algorithm</h4>
+            <p>
+              Finds optimal flights considering convenience, comfort, and overall value beyond just price.
+            </p>
+            <ul class="algorithm-features">
+              <li><i class="ri-check-line"></i> Optimal travel times</li>
+              <li><i class="ri-check-line"></i> Best airline ratings</li>
+              <li><i class="ri-check-line"></i> Convenient connections</li>
+              <li><i class="ri-check-line"></i> Quality-focused</li>
+            </ul>
+          </div>
+          
+          <div class="memories__card holographic-card" data-aos="flip-up" data-aos-delay="500">
+            <span><i class="ri-money-dollar-circle-line"></i></span>
+            <h4>Cheapest Flight Algorithm</h4>
+            <p>
+              Specialized in finding the absolute lowest fares while maintaining acceptable quality.
+            </p>
+            <ul class="algorithm-features">
+              <li><i class="ri-check-line"></i> Lowest possible prices</li>
+              <li><i class="ri-check-line"></i> Budget airline options</li>
+              <li><i class="ri-check-line"></i> Alternative routes</li>
+              <li><i class="ri-check-line"></i> Price-focused</li>
+            </ul>
+          </div>
+          
+          <div class="memories__card holographic-card" data-aos="flip-up" data-aos-delay="700">
+            <span><i class="ri-user-heart-line"></i></span>
+            <h4>Personalized Experience</h4>
+            <p>
+              Tailored recommendations based on your unique travel preferences and history.
+            </p>
+            <ul class="algorithm-features">
+              <li><i class="ri-check-line"></i> Learns your preferences</li>
+              <li><i class="ri-check-line"></i> Adapts to your budget</li>
+              <li><i class="ri-check-line"></i> Suggests ideal times</li>
+              <li><i class="ri-check-line"></i> Improves with each search</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section__container lounge__container">
+      <div class="lounge__image" data-aos="fade-right" data-aos-delay="200">
+        <img src="{{ url_for('static', filename='search.png') }}" alt="process 1">
+        <img src="{{ url_for('static', filename='booking.png') }}" alt="process 2">
+      </div>
+      <div class="lounge__content" data-aos="fade-left" data-aos-delay="500">
+        <h2 class="section__header">How Our System Works</h2>
+        <div class="lounge__grid">
+          <div class="lounge__details">
+            <h4><i class="ri-search-line"></i> 1. Search</h4>
+            <p>
+              Enter your travel details including dates, destinations, and preferences.
+            </p>
+          </div>
+          <div class="lounge__details">
+            <h4><i class="ri-cpu-line"></i> 2. Analyze</h4>
+            <p>
+              Our system processes thousands of flight options in seconds.
+            </p>
+          </div>
+          <div class="lounge__details">
+            <h4><i class="ri-lightbulb-flash-line"></i> 3. Recommend</h4>
+            <p>
+              Choose between "Best" or "Cheapest" algorithm results.
+            </p>
+          </div>
+          <div class="lounge__details">
+            <h4><i class="ri-flight-takeoff-line"></i> 4. Book</h4>
+            <p>
+              Get directed to the best booking options with our partners.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section__container travellers__container" data-aos="fade-up">
+      <h2 class="section__header">Why Travelers Love SkyScout</h2>
+      <div class="travellers__grid">
+        <div class="travellers__card" data-aos="zoom-in" data-aos-delay="300">
+          <div class="travellers__card__content">
+            <img src="{{ url_for('static', filename='client-1.jpg') }}" alt="client">
+            <h4>Sairaj Pai</h4>
+            <p>"What an exquisite site. Truly a TunTun project!"</p>
+          </div>
+        </div>
+        <div class="travellers__card" data-aos="zoom-in" data-aos-delay="400">
+          <div class="travellers__card__content">
+            <img src="{{ url_for('static', filename='kittler.png') }}" alt="client">
+            <h4>Kittler</h4>
+            <p>"I'm the first ever pet user of this service and I truly enjoyed the experience provided by TunTun Clan."</p>
+          </div>
+        </div>
+        <div class="travellers__card" data-aos="zoom-in" data-aos-delay="500">
+          <div class="travellers__card__content">
+            <img src="{{ url_for('static', filename='yash.jpg') }}" alt="client">
+            <h4>Yash Patil</h4>
+            <p>"Choosing a Flight has never been easier, this project carries true legacy of TunTun Clan!"</p>
+          </div>
+        </div>
+        <div class="travellers__card" data-aos="zoom-in" data-aos-delay="600">
+          <div class="travellers__card__content">
+            <img src="{{ url_for('static', filename='rane.jpg') }}" alt="client">
+            <h4>Prathamesh Rane</h4>
+            <p>"I can't figure out women, but flights? This project flawlessly helps with that"</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="subscribe" data-aos="fade-up" data-aos-delay="400">
+      <div class="section__container subscribe__container">
+        <h2 class="section__header">Want to Learn More?</h2>
+        <form class="subscribe__form holographic-card">
+          <input type="text" placeholder="Enter your questions here" />
+          <button class="btn">Contact Us</button>
+        </form>
+      </div>
+    </section>
+
+    <footer class="footer" data-aos="fade-up" data-aos-delay="600">
+      <div class="section__container footer__container">
+        <div class="footer__col">
+          <h3>SkyScout</h3>
+          <p>
+            Your trusted partner in finding the best and cheapest flights. We use advanced algorithms to ensure you get the most value for your money.
+          </p>
+          <p>
+            Travel smarter, save more, and explore the world with SkyScout.
+          </p>
+        </div>
+        <div class="footer__col">
+          <h4>INFORMATION</h4>
+          <p>Home</p>
+          <p>About</p>
+          <p>Deals</p>
+          <p>Seats</p>
+          <p>Destinations</p>
+        </div>
+        <div class="footer__col">
+          <h4>CONTACT</h4>
+          <p>Support</p>
+          <p>Media</p>
+          <p>Socials</p>
+        </div>
+      </div>
+      <div class="section__container footer__bar">
+        <p>Copyright © 2023 SkyScout All rights reserved.</p>
+        <div class="socials">
+          <span><i class="ri-facebook-fill"></i></span>
+          <span><i class="ri-twitter-fill"></i></span>
+          <span><i class="ri-instagram-line"></i></span>
+          <span><i class="ri-youtube-fill"></i></span>
+        </div>
+      </div>
+    </footer>
+
+    <style>
+      /* Additional styles for about page */
+      .algorithm-features {
+        margin-top: 15px;
+        list-style: none;
+      }
+      
+      .algorithm-features li {
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+      }
+      
+      .algorithm-features i {
+        margin-right: 8px;
+        color: #0066cc;
+      }
+      
+      .lounge__details h4 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .holographic-card {
+        position: relative;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        z-index: 1;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+      
+      .holographic-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          to bottom right,
+          rgba(0, 255, 255, 0.1),
+          rgba(255, 0, 255, 0.1),
+          rgba(255, 255, 0, 0.1),
+          rgba(0, 255, 255, 0.1)
+        );
+        transform: rotate(30deg);
+        opacity: 0;
+        transition: all 0.6s ease;
+        z-index: -1;
+      }
+      
+      .holographic-card:hover {
+        transform: scale(1.03);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+      }
+      
+      .holographic-card:hover::before {
+        opacity: 0.8;
+        top: -100%;
+        left: -100%;
+      }
+      
+      .memories__card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 1px solid rgba(0, 102, 204, 0.1);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      .memories__card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 102, 204, 0.15);
+      }
+      
+      .memories__card span {
+        display: inline-block;
+        transition: transform 0.3s ease;
+      }
+      
+      .memories__card:hover span {
+        transform: scale(1.2);
+      }
+      
+      /* Gradient Background for Best/Cheapest Cards */
+      .memories__card:nth-child(1) {
+        border-top: 4px solid #0066cc;
+      }
+      
+      .memories__card:nth-child(2) {
+        border-top: 4px solid #00cc66;
+      }
+      
+      /* Pulse Animation for Icons */
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      
+      .memories__card:hover i {
+        animation: pulse 1.5s infinite;
+      }
+      
+      .algorithm-features {
+        margin-top: 15px;
+        list-style: none;
+      }
+      
+      .algorithm-features li {
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+      }
+      
+      .algorithm-features li:hover {
+        transform: translateX(5px);
+      }
+      
+      .algorithm-features i {
+        margin-right: 8px;
+        color: #0066cc;
+      }
+      
+      .memories__card {
+        padding: 25px;
+      }
+      
+      .memories__card h4 {
+        margin: 15px 0 10px;
+        color: #2c3e50;
+        transition: color 0.3s ease;
+      }
+      
+      .memories__card:hover h4 {
+        color: #0066cc;
+      }
+      
+      .lounge__details h4 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      /* Floating Animation for Steps */
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      .lounge__details {
+        transition: all 0.4s ease;
+      }
+      
+      .lounge__details:hover {
+        transform: translateY(-5px);
+        animation: float 3s ease-in-out infinite;
+      }
+    </style>
+  </body>
+</html>
